@@ -1,4 +1,5 @@
 rule star_index:
+    """Index the genome for STAR"""
     input:
         dna=REFERENCE / "genome.fa",
         gtf=REFERENCE / "annotation.gtf",
@@ -12,8 +13,8 @@ rule star_index:
         REFERENCE / "index.log",
     threads: 24
     resources:
-        mem_gb=150,
-        time="08:00:00",
+        mem_mb=32 * 1024,
+        runtime=24 * 60,
     shell:
         """
         STAR \
@@ -28,15 +29,17 @@ rule star_index:
 
 
 rule star_align_one:
+    """Align one library to the host genome with STAR to discard host RNA"""
     input:
-        r1=FASTP / "{sample}.{library}_1.fq.gz",
-        r2=FASTP / "{sample}.{library}_2.fq.gz",
+        r1=RIBODETECTOR / "{sample}.{library}_1.fq.gz",
+        r2=RIBODETECTOR / "{sample}.{library}_2.fq.gz",
         index=STAR / "index",
     output:
         bam=temp(STAR / "{sample}.{library}.Aligned.sortedByCoord.out.bam"),
         u1=temp(STAR / "{sample}.{library}.Unmapped.out.mate1"),
         u2=temp(STAR / "{sample}.{library}.Unmapped.out.mate2"),
         report=STAR / "{sample}.{library}.Log.final.out",
+        counts=STAR / "{sample}.{library}.ReadsPerGene.out.tab",
     log:
         STAR / "{sample}.{library}.log",
     params:
@@ -45,7 +48,7 @@ rule star_align_one:
         "../envs/star.yml"
     threads: 24
     resources:
-        mem_mb=4 * 1024,
+        mem_mb = 32 * 1024,
         runtime=24 * 60,
     shell:
         """
@@ -60,61 +63,48 @@ rule star_align_one:
                 {input.r2} \
             --outFileNamePrefix {params.out_prefix} \
             --outSAMtype BAM SortedByCoordinate \
+            --outSAMunmapped Within KeepPairs \
             --outReadsUnmapped Fastx \
             --readFilesCommand "gzip -cd" \
-            --quantMode TranscriptomeSAM GeneCounts \
+            --quantMode GeneCounts \
         2>> {log} 1>&2
         """
 
 
-rule star_compress_unpaired_one:
-    input:
-        u1=STAR / "{sample}.{library}.Unmapped.out.mate1",
-        u2=STAR / "{sample}.{library}.Unmapped.out.mate2",
-    output:
-        u1=STAR / "{sample}.{library}.Unmapped.out.mate1.fq.gz",
-        u2=STAR / "{sample}.{library}.Unmapped.out.mate2.fq.gz",
-    log:
-        STAR / "{sample}.{library}.compression.log",
-    conda:
-        "../envs/star.yml"
-    threads: 24
-    shell:
-        """
-        pigz --best --stdout {input.u1} > {output.u1} 2>  {log}
-        pigz --best --stdout {input.u2} > {output.u2} 2>> {log}
-        """
-
-
-rule star_compress_all:
+rule star_align_all:
     input:
         [
-            STAR / f"{sample}.{library}.Unmapped.out.{mate}.fq.gz"
+            STAR / f"{sample}.{library}.ReadsPerGene.out.tab"
             for sample, library in SAMPLE_LIB
-            for mate in "mate1 mate2".split()
         ],
 
 
 rule star_cram_one:
+    """Convert to cram one library
+
+    Note: we use samtools sort when it is already sorted because there is no
+    other way to use minimizers on the unmapped fraction.
+    """
     input:
         bam=STAR / "{sample}.{library}.Aligned.sortedByCoord.out.bam",
         reference=REFERENCE / "genome.fa",
     output:
-        cram=protected(STAR / "{sample}.{library}.Aligned.sortedByCoord.out.cram"),
-        crai=STAR / "{sample}.{library}.Aligned.sortedByCoord.out.cram.crai",
+        cram=STAR / "{sample}.{library}.cram",
+        crai=STAR / "{sample}.{library}.cram.crai",
     log:
         STAR / "{sample}.{library}.Aligned.sortedByCoord.out.cram.log",
     conda:
         "../envs/star.yml"
     threads: 24
     resources:
-        mem_mb=24 * 2048,
+        mem_mb=24 * 1024,
         runtime=24 * 60,
     shell:
         """
         samtools sort \
             -l 9 \
             -m 1G \
+            -M \
             -o {output.cram} \
             --output-fmt CRAM \
             --reference {input.reference} \
@@ -126,9 +116,10 @@ rule star_cram_one:
 
 
 rule star_cram_all:
+    """Convert to cram all libraries"""
     input:
         [
-            STAR / f"{sample}.{library}.Aligned.sortedByCoord.out.cram"
+            STAR / f"{sample}.{library}.cram"
             for sample, library in SAMPLE_LIB
         ],
 
@@ -139,13 +130,9 @@ rule star_report_all:
         [STAR / f"{sample}.{library}.Log.final.out" for sample, library in SAMPLE_LIB],
 
 
-rule star_all:
+rule star:
+    """Run all the elements in the star subworkflow"""
     input:
-        rules.star_compress_all.input,
+        rules.star_align_all.input,
         rules.star_cram_all.input,
         rules.star_report_all.input,
-
-
-rule star:
-    input:
-        rules.star_all.input,

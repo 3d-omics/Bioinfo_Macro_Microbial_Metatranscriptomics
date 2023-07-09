@@ -15,21 +15,28 @@ samples = pd.read_table("config/samples.tsv", comment="#", dtype="str")
 SAMPLES = samples["sample"].drop_duplicates().values.tolist()
 SAMPLE_LIB = samples[["sample", "library"]].values.tolist()
 MAX_THREADS = params["max_threads"]
+BAM_REPORTS = ["stats.tsv", "flagstats.txt", "idxstats.tsv"]
 
 
 # Import subworkflows
 include: "rules/folders.smk"
 include: "rules/reads_functions.smk"
 include: "rules/reads.smk"
+include: "rules/samtools.smk"
 include: "rules/reference.smk"
 include: "rules/fastqc.smk"
 include: "rules/fastp_functions.smk"
 include: "rules/fastp.smk"
+include: "rules/kraken2.smk"
+include: "rules/ribodetector.smk"
 include: "rules/star_functions.smk"
 include: "rules/star.smk"
 include: "rules/bowtie2_functions.smk"
 include: "rules/bowtie2.smk"
 include: "rules/coverm.smk"
+include: "rules/report_library_functions.smk"
+include: "rules/report_step.smk"
+include: "rules/report_library.smk"
 
 
 rule all:
@@ -38,6 +45,9 @@ rule all:
         # rules.reads.input,
         # rules.reference.input,
         # rules.fastp.input,
+        rules.kraken2.input,
         # rules.star.input,
         # rules.bowtie2.input,
+        rules.report_step.input,
+        rules.report_library.input,
         rules.coverm.input,

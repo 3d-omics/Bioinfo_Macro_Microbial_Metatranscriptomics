@@ -5,6 +5,13 @@ max_threads: 96
 fastp:
   extra: ""
 
+kraken2:
+  mem_mb: 4 * 1024  # approx same memory as database size in disk
+
+ribodetector:
+  chunk_size: 1024  # 2 * 150 bp reads * 1024 * 1024 (chunk size) * 24 threads ~ 22 GB of RAM
+  average_length: 100
+
 star:
   index:
     sjdbOverhang: 150

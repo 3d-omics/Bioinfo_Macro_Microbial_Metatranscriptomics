@@ -87,6 +87,7 @@ rule samtools_stats_bam:
     input:
         bam="{prefix}.bam",
         bai="{prefix}.bam.bai",
+        reference=REFERENCE / "mags.fa.gz"
     output:
         tsv="{prefix}.stats.tsv",
     log:
@@ -94,7 +95,7 @@ rule samtools_stats_bam:
     conda:
         "../envs/samtools.yml"
     shell:
-        "samtools stats {input.bam} > {output.tsv} 2> {log}"
+        "samtools stats --reference {input.reference} {input.bam} > {output.tsv} 2> {log}"
 
 
 rule samtools_stats_cram:
@@ -102,6 +103,7 @@ rule samtools_stats_cram:
     input:
         cram="{prefix}.cram",
         crai="{prefix}.cram.crai",
+        reference=REFERENCE / "mags.fa.gz"
     output:
         tsv="{prefix}.stats.tsv",
     log:
@@ -109,7 +111,7 @@ rule samtools_stats_cram:
     conda:
         "../envs/samtools.yml"
     shell:
-        "samtools stats {input.cram} > {output.tsv} 2> {log}"
+        "samtools stats --reference {input.reference} {input.cram} > {output.tsv} 2> {log}"
 
 
 rule samtools_flagstats_bam:

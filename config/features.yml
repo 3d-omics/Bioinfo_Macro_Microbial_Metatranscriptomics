@@ -4,6 +4,6 @@ host:
     dna: resources/reference/chrX_sub.fa.gz
     gtf: resources/reference/chrX_sub.gtf.gz
 
-mags:
-    - resources/mags/scybalocola_faecipullorum.fna.gz
-    - resources/mags/acutalibacter_ornithocaccae.fna.gz
+mags: resources/mags_mock.fa.gz
+
+kraken2_db: resources/kraken_mock

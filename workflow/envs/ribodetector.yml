@@ -1,0 +1,9 @@
+# sortmerna.yml: conda environment file for sort
+---
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - ribodetector=0.2.7
+  - pigz=2.6
